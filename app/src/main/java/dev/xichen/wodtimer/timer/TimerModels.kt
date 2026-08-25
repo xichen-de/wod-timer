@@ -1,7 +1,7 @@
 package dev.xichen.wodtimer.timer
 
 sealed interface TimerMode {
-    data object ForTime : TimerMode
+    data class ForTime(val capMillis: Long? = null) : TimerMode
     data class Amrap(val durationMillis: Long) : TimerMode
     data class EveryXMinutes(val intervalMillis: Long, val rounds: Int) : TimerMode
     data class Intervals(val workMillis: Long, val restMillis: Long, val rounds: Int) : TimerMode
@@ -9,6 +9,7 @@ sealed interface TimerMode {
 
 data class TimerConfig(
     val mode: TimerMode,
+    val workoutName: String? = null,
     val preStartSeconds: Int = 3,
     val soundEnabled: Boolean = true,
     val vibrationEnabled: Boolean = true,
@@ -17,6 +18,7 @@ data class TimerConfig(
 
 enum class TimerStatus { IDLE, PREPARING, RUNNING, PAUSED, FINISHED }
 enum class TimerPhase { PREPARING, RUNNING, WORK, REST, FINISHED }
+enum class FinishReason { COMPLETED, TIME_CAP, DURATION_COMPLETE }
 
 data class TimerSnapshot(
     val config: TimerConfig,
@@ -28,17 +30,18 @@ data class TimerSnapshot(
     val totalRounds: Int?,
     val preStartRemainingSeconds: Int? = null,
     val intervalRemainingMillis: Long? = null,
+    val finishReason: FinishReason? = null,
 )
 
 fun TimerMode.title(): String = when (this) {
-    TimerMode.ForTime -> "For Time"
+    is TimerMode.ForTime -> "For Time"
     is TimerMode.Amrap -> "AMRAP"
     is TimerMode.EveryXMinutes -> "Every X Minutes"
     is TimerMode.Intervals -> "Intervals"
 }
 
 fun TimerMode.totalDurationMillis(): Long? = when (this) {
-    TimerMode.ForTime -> null
+    is TimerMode.ForTime -> capMillis
     is TimerMode.Amrap -> durationMillis
     is TimerMode.EveryXMinutes -> intervalMillis * rounds
     is TimerMode.Intervals -> (workMillis + restMillis) * rounds - restMillis
@@ -57,4 +60,3 @@ fun formatClock(millis: Long): String = formatHms(if (millis <= 0) 0 else (milli
 
 /** Elapsed time, truncated to whole seconds. */
 fun formatElapsed(millis: Long): String = formatHms(millis.coerceAtLeast(0L) / 1_000L)
-

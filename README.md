@@ -29,10 +29,11 @@ WOD Timer is a local Android timer for CrossFit and functional-fitness workouts.
 
 ## What it supports
 
-- For Time, AMRAP, Every X Minutes, and work/rest intervals
+- For Time with an optional time cap, AMRAP, Every X Minutes, and work/rest intervals
 - Reusable presets with backup and restore
 - Sound and vibration cues
 - Pause, resume, reset, and background timing
+- Automatic immersive landscape timer with a larger clock
 - Automatic light and dark themes
 - Fully offline operation with no accounts, ads, analytics, or network permission
 

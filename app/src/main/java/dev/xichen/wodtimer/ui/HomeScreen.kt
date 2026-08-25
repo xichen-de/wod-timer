@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -32,12 +33,13 @@ import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Whatshot
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -47,6 +49,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -61,7 +64,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.xichen.wodtimer.preset.Preset
 import dev.xichen.wodtimer.preset.PresetMode
@@ -74,6 +76,7 @@ fun HomeScreen(viewModel: AppViewModel) {
     val message by viewModel.message.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     var presetMenuOpen by remember { mutableStateOf(false) }
+    var pendingDelete by remember { mutableStateOf<Preset?>(null) }
     val backupLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json"),
     ) { uri -> if (uri != null) viewModel.backupPresets(uri) }
@@ -99,50 +102,9 @@ fun HomeScreen(viewModel: AppViewModel) {
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
         item {
-            Text(
-                "TRAINING TOOLS",
-                color = MaterialTheme.colorScheme.primary,
-                style = MaterialTheme.typography.labelLarge,
-                letterSpacing = 1.8.sp,
-                fontWeight = FontWeight.Bold,
-            )
-            Text(
-                "Ready when you are.",
-                style = MaterialTheme.typography.headlineLarge,
-                fontWeight = FontWeight.Black,
-                modifier = Modifier.padding(top = 6.dp),
-            )
-            Text(
-                "Pick a format and get moving.",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.padding(top = 4.dp, bottom = 20.dp),
-            )
-            SectionTitle("Quick start")
-        }
-        item {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    QuickCard("For time", "Count up", Icons.Default.Timer, Modifier.weight(1f)) {
-                        viewModel.configure(PresetMode.FOR_TIME)
-                    }
-                    QuickCard("AMRAP", "Beat the clock", Icons.Default.Bolt, Modifier.weight(1f)) {
-                        viewModel.configure(PresetMode.AMRAP)
-                    }
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    QuickCard("Every X", "Repeat rounds", Icons.Default.Repeat, Modifier.weight(1f)) {
-                        viewModel.configure(PresetMode.EVERY_X_MINUTES)
-                    }
-                    QuickCard("Intervals", "Work + rest", Icons.Default.Whatshot, Modifier.weight(1f)) {
-                        viewModel.configure(PresetMode.INTERVALS)
-                    }
-                }
-            }
-        }
-        item {
-            Spacer(Modifier.height(12.dp))
-            SectionTitle("My presets", presets.size.takeIf { it > 0 }?.toString()) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("WOD Timer", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Black)
+                Spacer(Modifier.weight(1f))
                 Box {
                     IconButton(onClick = { presetMenuOpen = true }) {
                         Icon(Icons.Default.MoreVert, "Manage presets")
@@ -171,8 +133,8 @@ fun HomeScreen(viewModel: AppViewModel) {
                     }
                 }
             }
-            if (presets.isEmpty()) EmptyPresets()
         }
+        if (presets.isNotEmpty()) item { SectionTitle("My presets", presets.size.toString()) }
         itemsIndexed(presets, key = { _, preset -> preset.id }) { index, preset ->
             PresetCard(
                 preset = preset,
@@ -181,14 +143,50 @@ fun HomeScreen(viewModel: AppViewModel) {
                 onLaunch = { viewModel.launch(preset) },
                 onEdit = { viewModel.edit(preset) },
                 onDuplicate = { viewModel.duplicate(preset) },
-                onDelete = { viewModel.delete(preset) },
+                onDelete = { pendingDelete = preset },
                 onMove = { viewModel.move(preset, it) },
             )
+        }
+        item {
+            Spacer(Modifier.height(if (presets.isEmpty()) 2.dp else 12.dp))
+            SectionTitle("Quick start")
+        }
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    QuickCard("For time", "Count up", Icons.Default.Timer, Modifier.weight(1f)) {
+                        viewModel.configure(PresetMode.FOR_TIME)
+                    }
+                    QuickCard("AMRAP", "Beat the clock", Icons.Default.Bolt, Modifier.weight(1f)) {
+                        viewModel.configure(PresetMode.AMRAP)
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    QuickCard("EMOM / Every X", "Repeat rounds", Icons.Default.Repeat, Modifier.weight(1f)) {
+                        viewModel.configure(PresetMode.EVERY_X_MINUTES)
+                    }
+                    QuickCard("Intervals", "Work + rest", Icons.Default.Whatshot, Modifier.weight(1f)) {
+                        viewModel.configure(PresetMode.INTERVALS)
+                    }
+                }
+            }
         }
         }
         SnackbarHost(
             hostState = snackbarHostState,
             modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding(),
+        )
+    }
+
+    pendingDelete?.let { preset ->
+        AlertDialog(
+            onDismissRequest = { pendingDelete = null },
+            title = { Text("Delete ${preset.name}?") },
+            text = { Text("This preset will be permanently removed.") },
+            confirmButton = {
+                Button(onClick = { pendingDelete = null; viewModel.delete(preset) }) { Text("Delete") }
+            },
+            dismissButton = { TextButton(onClick = { pendingDelete = null }) { Text("Cancel") } },
         )
     }
 }
@@ -230,18 +228,6 @@ private fun QuickCard(title: String, subtitle: String, icon: ImageVector, modifi
 }
 
 @Composable
-private fun EmptyPresets() {
-    Surface(
-        modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-        shape = RoundedCornerShape(22.dp),
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = .45f)),
-    ) {
-        Text("Your saved workouts will live here.", Modifier.padding(20.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
-}
-
-@Composable
 private fun PresetCard(
     preset: Preset,
     canMoveUp: Boolean,
@@ -263,7 +249,7 @@ private fun PresetCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Surface(modifier = Modifier.size(44.dp), shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.secondary.copy(alpha = .13f)) {
                     Box(contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.Timer, null, Modifier.size(23.dp), tint = MaterialTheme.colorScheme.secondary)
+                        Icon(preset.mode.icon(), null, Modifier.size(23.dp), tint = MaterialTheme.colorScheme.secondary)
                     }
                 }
                 Column(Modifier.weight(1f).padding(horizontal = 13.dp)) {
@@ -276,7 +262,7 @@ private fun PresetCard(
                     color = MaterialTheme.colorScheme.primary,
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.PlayArrow, "Launch ${preset.name}", Modifier.size(28.dp), tint = MaterialTheme.colorScheme.onPrimary)
+                        Icon(Icons.AutoMirrored.Filled.ArrowForward, "Open ${preset.name}", Modifier.size(26.dp), tint = MaterialTheme.colorScheme.onPrimary)
                     }
                 }
             }
@@ -285,24 +271,30 @@ private fun PresetCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.End,
             ) {
-                IconButton(onClick = { onMove(-1) }, enabled = canMoveUp, modifier = Modifier.size(40.dp)) {
-                    Icon(Icons.Default.KeyboardArrowUp, "Move up", Modifier.size(21.dp))
-                }
-                IconButton(onClick = { onMove(1) }, enabled = canMoveDown, modifier = Modifier.size(40.dp)) {
-                    Icon(Icons.Default.KeyboardArrowDown, "Move down", Modifier.size(21.dp))
-                }
                 Spacer(Modifier.weight(1f))
-                Surface(modifier = Modifier.clip(RoundedCornerShape(12.dp)).clickable(onClick = onEdit), color = Color.Transparent) {
-                    Row(Modifier.padding(horizontal = 10.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
+                Surface(modifier = Modifier.height(48.dp).clip(RoundedCornerShape(12.dp)).clickable(onClick = onEdit), color = Color.Transparent) {
+                    Row(Modifier.padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.Edit, null, Modifier.size(18.dp))
                         Text("Edit", Modifier.padding(start = 6.dp), style = MaterialTheme.typography.labelLarge)
                     }
                 }
                 Box {
-                    IconButton(onClick = { menuOpen = true }, modifier = Modifier.size(40.dp)) {
+                    IconButton(onClick = { menuOpen = true }, modifier = Modifier.size(48.dp)) {
                         Icon(Icons.Default.MoreVert, "More preset actions")
                     }
                     DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                        DropdownMenuItem(
+                            text = { Text("Move up") },
+                            leadingIcon = { Icon(Icons.Default.KeyboardArrowUp, null) },
+                            enabled = canMoveUp,
+                            onClick = { menuOpen = false; onMove(-1) },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Move down") },
+                            leadingIcon = { Icon(Icons.Default.KeyboardArrowDown, null) },
+                            enabled = canMoveDown,
+                            onClick = { menuOpen = false; onMove(1) },
+                        )
                         DropdownMenuItem(
                             text = { Text("Duplicate") },
                             leadingIcon = { Icon(Icons.Default.ContentCopy, null) },
@@ -320,8 +312,15 @@ private fun PresetCard(
     }
 }
 
+private fun PresetMode.icon(): ImageVector = when (this) {
+    PresetMode.FOR_TIME -> Icons.Default.Timer
+    PresetMode.AMRAP -> Icons.Default.Bolt
+    PresetMode.EVERY_X_MINUTES -> Icons.Default.Repeat
+    PresetMode.INTERVALS -> Icons.Default.Whatshot
+}
+
 private fun Preset.summary(): String = when (mode) {
-    PresetMode.FOR_TIME -> "For Time · count up"
+    PresetMode.FOR_TIME -> if (forTimeCapEnabled) "For Time · ${formatClock(durationMillis)} cap" else "For Time · count up"
     PresetMode.AMRAP -> "AMRAP · ${formatClock(durationMillis)}"
     PresetMode.EVERY_X_MINUTES -> "Every ${formatClock(intervalMillis)} · $rounds rounds"
     PresetMode.INTERVALS -> "${workMillis / 1_000}s work · ${restMillis / 1_000}s rest · $rounds rounds"
