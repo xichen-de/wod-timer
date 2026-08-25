@@ -12,6 +12,10 @@ val keystoreProperties = Properties().apply {
 }
 val personalSigningConfigured = listOf("storeFile", "storePassword", "keyAlias", "keyPassword")
     .all { !keystoreProperties.getProperty(it).isNullOrBlank() }
+val releaseVersionName = System.getenv("WOD_TIMER_VERSION_NAME") ?: "1.0.0"
+val releaseVersionCode = System.getenv("WOD_TIMER_VERSION_CODE")?.let { value ->
+    requireNotNull(value.toIntOrNull()) { "WOD_TIMER_VERSION_CODE must be an integer" }
+} ?: 1
 
 android {
     namespace = "dev.xichen.wodtimer"
@@ -23,8 +27,8 @@ android {
         applicationId = "dev.xichen.wodtimer"
         minSdk = 26
         targetSdk = 37
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = releaseVersionCode
+        versionName = releaseVersionName
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
