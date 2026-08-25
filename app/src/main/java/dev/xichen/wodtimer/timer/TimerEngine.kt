@@ -12,12 +12,14 @@ class TimerEngine(
     private var pausedDurationMillis = 0L
     private var statusBeforePause = TimerStatus.RUNNING
     private var stoppedElapsedMillis: Long? = null
+    private var finishReason: FinishReason? = null
 
     fun start(nowMillis: Long) {
         if (status != TimerStatus.IDLE && status != TimerStatus.FINISHED) return
         startedAtMillis = nowMillis
         pausedDurationMillis = 0L
         stoppedElapsedMillis = null
+        finishReason = null
         status = if (config.preStartSeconds > 0) TimerStatus.PREPARING else TimerStatus.RUNNING
     }
 
@@ -40,6 +42,7 @@ class TimerEngine(
         refreshStatus(nowMillis)
         if (status == TimerStatus.RUNNING || status == TimerStatus.PREPARING || status == TimerStatus.PAUSED) {
             stoppedElapsedMillis = workoutElapsed(nowMillis)
+            finishReason = FinishReason.COMPLETED
             status = TimerStatus.FINISHED
         }
     }
@@ -50,6 +53,7 @@ class TimerEngine(
         pausedAtMillis = 0L
         pausedDurationMillis = 0L
         stoppedElapsedMillis = null
+        finishReason = null
     }
 
     fun snapshot(nowMillis: Long): TimerSnapshot {
@@ -86,6 +90,7 @@ class TimerEngine(
         val total = config.mode.totalDurationMillis()
         if (status == TimerStatus.RUNNING && total != null && active - prep >= total) {
             stoppedElapsedMillis = total
+            finishReason = if (config.mode is TimerMode.ForTime) FinishReason.TIME_CAP else FinishReason.DURATION_COMPLETE
             status = TimerStatus.FINISHED
         }
     }
@@ -120,9 +125,10 @@ class TimerEngine(
         val clampedElapsed = total?.let { elapsedMillis.coerceAtMost(it) } ?: elapsedMillis
         val finished = currentStatus == TimerStatus.FINISHED
         return when (mode) {
-            TimerMode.ForTime -> TimerSnapshot(
+            is TimerMode.ForTime -> TimerSnapshot(
                 config, currentStatus, if (finished) TimerPhase.FINISHED else TimerPhase.RUNNING,
-                clampedElapsed, null, null, null,
+                clampedElapsed, mode.capMillis?.let { (it - clampedElapsed).coerceAtLeast(0L) }, null, null,
+                finishReason = finishReason,
             )
             is TimerMode.Amrap -> TimerSnapshot(
                 config, currentStatus, if (finished) TimerPhase.FINISHED else TimerPhase.RUNNING,
@@ -171,4 +177,3 @@ class TimerEngine(
         else -> null
     }
 }
-

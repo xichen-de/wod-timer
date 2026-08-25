@@ -18,6 +18,7 @@ data class Preset(
     val soundEnabled: Boolean = true,
     val vibrationEnabled: Boolean = true,
     val warningEnabled: Boolean = true,
+    val forTimeCapEnabled: Boolean = false,
     val position: Int = 0,
 ) {
     fun normalized() = copy(
@@ -33,16 +34,17 @@ data class Preset(
     fun toTimerConfig(): TimerConfig {
         val preset = normalized()
         return TimerConfig(
-        mode = when (preset.mode) {
-            PresetMode.FOR_TIME -> TimerMode.ForTime
-            PresetMode.AMRAP -> TimerMode.Amrap(preset.durationMillis)
-            PresetMode.EVERY_X_MINUTES -> TimerMode.EveryXMinutes(preset.intervalMillis, preset.rounds)
-            PresetMode.INTERVALS -> TimerMode.Intervals(preset.workMillis, preset.restMillis, preset.rounds)
-        },
-        preStartSeconds = preset.preStartSeconds,
-        soundEnabled = preset.soundEnabled,
-        vibrationEnabled = preset.vibrationEnabled,
-        warningEnabled = preset.warningEnabled,
+            mode = when (preset.mode) {
+                PresetMode.FOR_TIME -> TimerMode.ForTime(preset.durationMillis.takeIf { preset.forTimeCapEnabled })
+                PresetMode.AMRAP -> TimerMode.Amrap(preset.durationMillis)
+                PresetMode.EVERY_X_MINUTES -> TimerMode.EveryXMinutes(preset.intervalMillis, preset.rounds)
+                PresetMode.INTERVALS -> TimerMode.Intervals(preset.workMillis, preset.restMillis, preset.rounds)
+            },
+            workoutName = preset.name,
+            preStartSeconds = preset.preStartSeconds,
+            soundEnabled = preset.soundEnabled,
+            vibrationEnabled = preset.vibrationEnabled,
+            warningEnabled = preset.warningEnabled,
         )
     }
 }

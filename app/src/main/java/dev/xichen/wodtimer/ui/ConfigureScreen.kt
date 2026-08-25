@@ -1,6 +1,7 @@
 package dev.xichen.wodtimer.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -32,19 +33,22 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.xichen.wodtimer.preset.PresetMode
+import dev.xichen.wodtimer.preset.Preset
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ConfigureScreen(viewModel: AppViewModel) {
     val preset by viewModel.draft.collectAsStateWithLifecycle()
+    val validationMessage = preset.validationMessage()
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Configure ${preset.mode.label()}") },
+                title = { Text("Set up ${preset.mode.label()}") },
                 navigationIcon = { IconButton(viewModel::back) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
             )
@@ -54,15 +58,22 @@ fun ConfigureScreen(viewModel: AppViewModel) {
             Modifier.fillMaxSize().padding(padding).padding(horizontal = 20.dp).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            OutlinedTextField(
-                value = preset.name,
-                onValueChange = { value -> viewModel.updateDraft { it.copy(name = value) } },
-                label = { Text("Preset name") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
             when (preset.mode) {
-                PresetMode.FOR_TIME -> Text("Counts upward until you stop it.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                PresetMode.FOR_TIME -> {
+                    Text(
+                        if (preset.forTimeCapEnabled) "Counts upward and finishes when the cap is reached."
+                        else "Counts upward until you stop it.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Toggle("Time cap", preset.forTimeCapEnabled) { value ->
+                        viewModel.updateDraft { it.copy(forTimeCapEnabled = value) }
+                    }
+                    if (preset.forTimeCapEnabled) {
+                        DurationFields("Time cap", preset.durationMillis) {
+                            viewModel.updateDraft { preset -> preset.copy(durationMillis = it) }
+                        }
+                    }
+                }
                 PresetMode.AMRAP -> DurationFields("Duration", preset.durationMillis) {
                     viewModel.updateDraft { preset -> preset.copy(durationMillis = it) }
                 }
@@ -88,9 +99,27 @@ fun ConfigureScreen(viewModel: AppViewModel) {
             Toggle("Sound cues", preset.soundEnabled) { value -> viewModel.updateDraft { it.copy(soundEnabled = value) } }
             Toggle("Vibration", preset.vibrationEnabled) { value -> viewModel.updateDraft { it.copy(vibrationEnabled = value) } }
             Toggle("Final-seconds warning", preset.warningEnabled) { value -> viewModel.updateDraft { it.copy(warningEnabled = value) } }
+            OutlinedTextField(
+                value = preset.name,
+                onValueChange = { value -> viewModel.updateDraft { it.copy(name = value) } },
+                label = { Text("Preset name (for saving)") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            validationMessage?.let {
+                Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
+            }
             Spacer(Modifier.height(4.dp))
-            Button(onClick = viewModel::startDraft, modifier = Modifier.fillMaxWidth().height(56.dp)) { Text("START") }
-            OutlinedButton(onClick = viewModel::save, modifier = Modifier.fillMaxWidth().height(52.dp)) {
+            Button(
+                onClick = viewModel::startDraft,
+                enabled = validationMessage == null,
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+            ) { Text("CONTINUE") }
+            OutlinedButton(
+                onClick = viewModel::save,
+                enabled = validationMessage == null,
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+            ) {
                 Text(if (preset.id == 0L) "SAVE AS PRESET" else "SAVE CHANGES")
             }
             Spacer(Modifier.height(20.dp))
@@ -141,9 +170,36 @@ private fun NumericField(label: String, value: Long, modifier: Modifier, onChang
 
 @Composable
 private fun Toggle(label: String, checked: Boolean, onChecked: (Boolean) -> Unit) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        Modifier.fillMaxWidth().clickable(role = Role.Switch) { onChecked(!checked) }.padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         Text(label, Modifier.weight(1f))
-        Switch(checked = checked, onCheckedChange = onChecked)
+        Switch(checked = checked, onCheckedChange = null)
+    }
+}
+
+private fun Preset.validationMessage(): String? {
+    if (preStartSeconds !in 0..60) return "Pre-start countdown must be between 0 and 60 seconds."
+    return when (mode) {
+        PresetMode.FOR_TIME -> when {
+            forTimeCapEnabled && durationMillis !in 1_000L..24 * 60 * 60_000L -> "Time cap must be between 1 second and 24 hours."
+            else -> null
+        }
+        PresetMode.AMRAP -> if (durationMillis !in 1_000L..24 * 60 * 60_000L) {
+            "Duration must be between 1 second and 24 hours."
+        } else null
+        PresetMode.EVERY_X_MINUTES -> when {
+            intervalMillis !in 1_000L..60 * 60_000L -> "Interval must be between 1 second and 60 minutes."
+            rounds !in 1..999 -> "Rounds must be between 1 and 999."
+            else -> null
+        }
+        PresetMode.INTERVALS -> when {
+            workMillis !in 1_000L..60 * 60_000L -> "Work time must be between 1 second and 60 minutes."
+            restMillis !in 0L..60 * 60_000L -> "Rest time must be between 0 and 60 minutes."
+            rounds !in 1..999 -> "Rounds must be between 1 and 999."
+            else -> null
+        }
     }
 }
 
