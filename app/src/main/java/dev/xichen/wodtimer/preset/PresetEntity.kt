@@ -1,5 +1,6 @@
 package dev.xichen.wodtimer.preset
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -17,16 +18,18 @@ data class PresetEntity(
     val soundEnabled: Boolean,
     val vibrationEnabled: Boolean,
     val warningEnabled: Boolean,
+    @ColumnInfo(defaultValue = "0") val forTimeCapEnabled: Boolean,
     val position: Int,
 )
 
 fun PresetEntity.toDomain() = Preset(
     id, name, PresetMode.valueOf(mode), durationMillis, intervalMillis, workMillis,
-    restMillis, rounds, preStartSeconds, soundEnabled, vibrationEnabled, warningEnabled, position,
+    restMillis, rounds, preStartSeconds, soundEnabled, vibrationEnabled, warningEnabled,
+    forTimeCapEnabled, position,
 )
 
 fun Preset.toEntity() = PresetEntity(
     id, name.trim(), mode.name, durationMillis, intervalMillis, workMillis,
-    restMillis, rounds, preStartSeconds, soundEnabled, vibrationEnabled, warningEnabled, position,
+    restMillis, rounds, preStartSeconds, soundEnabled, vibrationEnabled, warningEnabled,
+    forTimeCapEnabled, position,
 )
-

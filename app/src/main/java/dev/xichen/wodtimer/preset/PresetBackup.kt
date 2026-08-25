@@ -31,6 +31,7 @@ object PresetBackup {
                 json.name("soundEnabled").value(clean.soundEnabled)
                 json.name("vibrationEnabled").value(clean.vibrationEnabled)
                 json.name("warningEnabled").value(clean.warningEnabled)
+                json.name("forTimeCapEnabled").value(clean.forTimeCapEnabled)
                 json.endObject()
             }
             json.endArray()
@@ -80,6 +81,7 @@ object PresetBackup {
         var soundEnabled = true
         var vibrationEnabled = true
         var warningEnabled = true
+        var forTimeCapEnabled = false
 
         json.beginObject()
         while (json.hasNext()) {
@@ -96,6 +98,7 @@ object PresetBackup {
                 "soundEnabled" -> soundEnabled = json.nextBoolean()
                 "vibrationEnabled" -> vibrationEnabled = json.nextBoolean()
                 "warningEnabled" -> warningEnabled = json.nextBoolean()
+                "forTimeCapEnabled" -> forTimeCapEnabled = json.nextBoolean()
                 else -> json.skipValue()
             }
         }
@@ -114,6 +117,7 @@ object PresetBackup {
             soundEnabled = soundEnabled,
             vibrationEnabled = vibrationEnabled,
             warningEnabled = warningEnabled,
+            forTimeCapEnabled = forTimeCapEnabled,
         ).normalized()
     }
 }

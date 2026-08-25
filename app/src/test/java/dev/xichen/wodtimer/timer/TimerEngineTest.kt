@@ -4,6 +4,33 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class TimerEngineTest {
+    @Test fun `for time cap keeps elapsed primary and finishes at the cap`() {
+        val engine = TimerEngine(TimerConfig(TimerMode.ForTime(capMillis = 15 * 60_000L), preStartSeconds = 0))
+        engine.start(1_000)
+
+        val running = engine.snapshot(6 * 60_000L + 1_000L)
+        assertEquals(6 * 60_000L, running.elapsedMillis)
+        assertEquals(9 * 60_000L, running.remainingMillis)
+
+        val capped = engine.snapshot(15 * 60_000L + 1_001L)
+        assertEquals(TimerStatus.FINISHED, capped.status)
+        assertEquals(FinishReason.TIME_CAP, capped.finishReason)
+        assertEquals(15 * 60_000L, capped.elapsedMillis)
+        assertEquals(0L, capped.remainingMillis)
+    }
+
+    @Test fun `stopping capped for time records a completed workout`() {
+        val engine = TimerEngine(TimerConfig(TimerMode.ForTime(capMillis = 10 * 60_000L), preStartSeconds = 0))
+        engine.start(0)
+        engine.stop(4 * 60_000L)
+
+        val completed = engine.snapshot(9 * 60_000L)
+        assertEquals(TimerStatus.FINISHED, completed.status)
+        assertEquals(FinishReason.COMPLETED, completed.finishReason)
+        assertEquals(4 * 60_000L, completed.elapsedMillis)
+        assertEquals(6 * 60_000L, completed.remainingMillis)
+    }
+
     @Test fun `amrap preparation and finish use absolute elapsed time`() {
         val engine = TimerEngine(TimerConfig(TimerMode.Amrap(60_000), preStartSeconds = 3))
         engine.start(10_000)

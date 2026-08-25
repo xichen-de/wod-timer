@@ -67,7 +67,7 @@ class TimerService : Service() {
         } ?: "Timer active"
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
-            .setContentTitle(state?.config?.mode?.title() ?: "WOD Timer")
+            .setContentTitle(state?.config?.workoutName ?: state?.config?.mode?.title() ?: "WOD Timer")
             .setContentText(text)
             .setContentIntent(launch)
             .setOnlyAlertOnce(true)

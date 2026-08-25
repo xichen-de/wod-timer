@@ -6,7 +6,7 @@ import org.junit.Test
 class CueTransitionTest {
     @Test fun `all workout modes use work cue when workout begins`() {
         val modes = listOf(
-            TimerMode.ForTime,
+            TimerMode.ForTime(),
             TimerMode.Amrap(60_000),
             TimerMode.EveryXMinutes(60_000, 3),
             TimerMode.Intervals(20_000, 10_000, 3),
