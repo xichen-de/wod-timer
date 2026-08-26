@@ -40,6 +40,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -184,9 +185,14 @@ fun HomeScreen(viewModel: AppViewModel) {
             title = { Text("Delete ${preset.name}?") },
             text = { Text("This preset will be permanently removed.") },
             confirmButton = {
-                Button(onClick = { pendingDelete = null; viewModel.delete(preset) }) { Text("Delete") }
+                Button(onClick = { pendingDelete = null }) { Text("Cancel") }
             },
-            dismissButton = { TextButton(onClick = { pendingDelete = null }) { Text("Cancel") } },
+            dismissButton = {
+                TextButton(
+                    onClick = { pendingDelete = null; viewModel.delete(preset) },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                ) { Text("Delete") }
+            },
         )
     }
 }
