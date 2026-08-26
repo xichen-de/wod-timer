@@ -61,6 +61,10 @@ Timing logic uses Android's monotonic clock and should be tested with explicit t
 
 The app does not request internet access. Presets remain on the device and no usage data is collected.
 
+## Install
+
+Download the signed APK from [GitHub Releases](https://github.com/xichen-de/wod-timer/releases/latest). Android may ask you to allow installation from your browser or file manager.
+
 ## License
 
 WOD Timer is available under the [MIT License](LICENSE).

@@ -94,11 +94,20 @@ jobs:
             printf 'keyPassword=%s\n' "$KEY_PASSWORD"
           } > keystore.properties
 
-      - name: Test and build signed packages
+      - name: Test and build signed APK
         env:
           WOD_TIMER_VERSION_NAME: ${{ steps.version.outputs.name }}
           WOD_TIMER_VERSION_CODE: ${{ steps.version.outputs.code }}
-        run: ./gradlew --no-daemon testDebugUnitTest lintRelease assembleRelease bundleRelease --stacktrace
+        run: ./gradlew --no-daemon testDebugUnitTest lintRelease assembleRelease --stacktrace
+
+      - name: Verify offline release manifest
+        shell: bash
+        run: |
+          manifest=app/build/intermediates/merged_manifest/release/processReleaseMainManifest/AndroidManifest.xml
+          if grep -qE 'android.permission.(INTERNET|ACCESS_NETWORK_STATE)' "$manifest"; then
+            echo "Release manifest unexpectedly grants network access." >&2
+            exit 1
+          fi
 
       - name: Prepare release assets
         env:
@@ -108,10 +117,8 @@ jobs:
           mkdir -p release-assets
           cp app/build/outputs/apk/release/app-release.apk \
             "release-assets/wod-timer-${VERSION_NAME}.apk"
-          cp app/build/outputs/bundle/release/app-release.aab \
-            "release-assets/wod-timer-${VERSION_NAME}.aab"
           cd release-assets
-          sha256sum ./*.apk ./*.aab > SHA256SUMS
+          sha256sum ./*.apk > SHA256SUMS
 
       - name: Publish GitHub release
         env:
@@ -122,17 +129,17 @@ jobs:
         shell: bash
         run: |
           if gh release view "$TAG" > /dev/null 2>&1; then
-            gh release upload "$TAG" release-assets/* --clobber
-          else
-            prerelease_args=()
-            if [[ "$PRERELEASE" == "true" ]]; then
-              prerelease_args+=(--prerelease)
-            fi
-            gh release create "$TAG" release-assets/* \
-              --title "WOD Timer ${VERSION_NAME}" \
-              --generate-notes \
-              "${prerelease_args[@]}"
+            echo "Release ${TAG} already exists; published releases are immutable." >&2
+            exit 1
           fi
+          prerelease_args=()
+          if [[ "$PRERELEASE" == "true" ]]; then
+            prerelease_args+=(--prerelease)
+          fi
+          gh release create "$TAG" release-assets/* \
+            --title "WOD Timer ${VERSION_NAME}" \
+            --generate-notes \
+            "${prerelease_args[@]}"
 
       - name: Remove signing material
         if: always()
