@@ -115,12 +115,12 @@ fun ConfigureScreen(viewModel: AppViewModel) {
                 enabled = validationMessage == null,
                 modifier = Modifier.fillMaxWidth().height(56.dp),
             ) { Text("CONTINUE") }
-            OutlinedButton(
-                onClick = viewModel::save,
-                enabled = validationMessage == null,
-                modifier = Modifier.fillMaxWidth().height(52.dp),
-            ) {
-                Text(if (preset.id == 0L) "SAVE AS PRESET" else "SAVE CHANGES")
+            if (preset.id == 0L) {
+                OutlinedButton(
+                    onClick = viewModel::save,
+                    enabled = validationMessage == null,
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                ) { Text("SAVE AS PRESET") }
             }
             Spacer(Modifier.height(20.dp))
         }
@@ -152,13 +152,20 @@ private fun IntegerField(label: String, value: Int, onChange: (Int) -> Unit) {
 
 @Composable
 private fun NumericField(label: String, value: Long, modifier: Modifier, onChange: (Long) -> Unit) {
-    var text by remember(value) { mutableStateOf(value.toString()) }
+    var text by remember { mutableStateOf(value.toString()) }
+    var lastPushedValue by remember { mutableStateOf(value) }
+    if (value != lastPushedValue) {
+        text = value.toString()
+        lastPushedValue = value
+    }
     OutlinedTextField(
         value = text,
         onValueChange = { candidate ->
             if (candidate.all(Char::isDigit) && candidate.length <= 6) {
                 text = candidate
-                onChange(candidate.toLongOrNull() ?: 0L)
+                val parsed = candidate.toLongOrNull() ?: 0L
+                lastPushedValue = parsed
+                onChange(parsed)
             }
         },
         label = { Text(label) },

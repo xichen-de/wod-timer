@@ -55,7 +55,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         _screen.value = AppScreen.TIMER
     }
 
-    fun startDraft() { controller.prepare(_draft.value.toTimerConfig()); _screen.value = AppScreen.TIMER }
+    fun startDraft() {
+        val draft = _draft.value
+        if (draft.id != 0L) viewModelScope.launch { repository.save(draft) }
+        controller.prepare(draft.toTimerConfig())
+        _screen.value = AppScreen.TIMER
+    }
     fun duplicate(preset: Preset) = viewModelScope.launch { repository.duplicate(preset) }
     fun delete(preset: Preset) = viewModelScope.launch { repository.delete(preset) }
     fun move(preset: Preset, delta: Int) = viewModelScope.launch { repository.move(preset.id, delta) }

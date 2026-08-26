@@ -61,7 +61,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -278,17 +277,16 @@ private fun PresetCard(
                 horizontalArrangement = Arrangement.End,
             ) {
                 Spacer(Modifier.weight(1f))
-                Surface(modifier = Modifier.height(48.dp).clip(RoundedCornerShape(12.dp)).clickable(onClick = onEdit), color = Color.Transparent) {
-                    Row(Modifier.padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Edit, null, Modifier.size(18.dp))
-                        Text("Edit", Modifier.padding(start = 6.dp), style = MaterialTheme.typography.labelLarge)
-                    }
-                }
                 Box {
                     IconButton(onClick = { menuOpen = true }, modifier = Modifier.size(48.dp)) {
                         Icon(Icons.Default.MoreVert, "More preset actions")
                     }
                     DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                        DropdownMenuItem(
+                            text = { Text("Edit") },
+                            leadingIcon = { Icon(Icons.Default.Edit, null) },
+                            onClick = { menuOpen = false; onEdit() },
+                        )
                         DropdownMenuItem(
                             text = { Text("Move up") },
                             leadingIcon = { Icon(Icons.Default.KeyboardArrowUp, null) },
