@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
@@ -134,23 +135,7 @@ fun HomeScreen(viewModel: AppViewModel) {
                 }
             }
         }
-        if (presets.isNotEmpty()) item { SectionTitle("My presets", presets.size.toString()) }
-        itemsIndexed(presets, key = { _, preset -> preset.id }) { index, preset ->
-            PresetCard(
-                preset = preset,
-                canMoveUp = index > 0,
-                canMoveDown = index < presets.lastIndex,
-                onLaunch = { viewModel.launch(preset) },
-                onEdit = { viewModel.edit(preset) },
-                onDuplicate = { viewModel.duplicate(preset) },
-                onDelete = { pendingDelete = preset },
-                onMove = { viewModel.move(preset, it) },
-            )
-        }
-        item {
-            Spacer(Modifier.height(if (presets.isEmpty()) 2.dp else 12.dp))
-            SectionTitle("Quick start")
-        }
+        item { SectionTitle("Quick start") }
         item {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -170,6 +155,24 @@ fun HomeScreen(viewModel: AppViewModel) {
                     }
                 }
             }
+        }
+        if (presets.isNotEmpty()) {
+            item {
+                Spacer(Modifier.height(12.dp))
+                SectionTitle("My presets", presets.size.toString())
+            }
+        }
+        itemsIndexed(presets, key = { _, preset -> preset.id }) { index, preset ->
+            PresetCard(
+                preset = preset,
+                canMoveUp = index > 0,
+                canMoveDown = index < presets.lastIndex,
+                onLaunch = { viewModel.launch(preset) },
+                onEdit = { viewModel.edit(preset) },
+                onDuplicate = { viewModel.duplicate(preset) },
+                onDelete = { pendingDelete = preset },
+                onMove = { viewModel.move(preset, it) },
+            )
         }
         }
         SnackbarHost(
@@ -250,66 +253,58 @@ private fun PresetCard(
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = .5f)),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
     ) {
-        Column(Modifier.fillMaxWidth().padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(modifier = Modifier.size(44.dp), shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.secondary.copy(alpha = .13f)) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(preset.mode.icon(), null, Modifier.size(23.dp), tint = MaterialTheme.colorScheme.secondary)
-                    }
-                }
-                Column(Modifier.weight(1f).padding(horizontal = 13.dp)) {
-                    Text(preset.name, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                    Text(preset.summary(), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
-                }
-                Surface(
-                    modifier = Modifier.size(48.dp).clip(CircleShape).clickable(onClick = onLaunch),
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.primary,
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowForward, "Open ${preset.name}", Modifier.size(26.dp), tint = MaterialTheme.colorScheme.onPrimary)
-                    }
+        Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Surface(modifier = Modifier.size(40.dp), shape = RoundedCornerShape(13.dp), color = MaterialTheme.colorScheme.secondary.copy(alpha = .13f)) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(preset.mode.icon(), null, Modifier.size(21.dp), tint = MaterialTheme.colorScheme.secondary)
                 }
             }
-            Row(
-                Modifier.fillMaxWidth().padding(top = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.End,
+            Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+                Text(preset.name, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                Text(preset.summary(), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
+            }
+            Box {
+                IconButton(onClick = { menuOpen = true }, modifier = Modifier.size(36.dp)) {
+                    Icon(Icons.Default.MoreVert, "More preset actions")
+                }
+                DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                    DropdownMenuItem(
+                        text = { Text("Edit") },
+                        leadingIcon = { Icon(Icons.Default.Edit, null) },
+                        onClick = { menuOpen = false; onEdit() },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Move up") },
+                        leadingIcon = { Icon(Icons.Default.KeyboardArrowUp, null) },
+                        enabled = canMoveUp,
+                        onClick = { menuOpen = false; onMove(-1) },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Move down") },
+                        leadingIcon = { Icon(Icons.Default.KeyboardArrowDown, null) },
+                        enabled = canMoveDown,
+                        onClick = { menuOpen = false; onMove(1) },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Duplicate") },
+                        leadingIcon = { Icon(Icons.Default.ContentCopy, null) },
+                        onClick = { menuOpen = false; onDuplicate() },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Delete") },
+                        leadingIcon = { Icon(Icons.Default.Delete, null) },
+                        onClick = { menuOpen = false; onDelete() },
+                    )
+                }
+            }
+            Spacer(Modifier.width(6.dp))
+            Surface(
+                modifier = Modifier.size(40.dp).clip(CircleShape).clickable(onClick = onLaunch),
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primary,
             ) {
-                Spacer(Modifier.weight(1f))
-                Box {
-                    IconButton(onClick = { menuOpen = true }, modifier = Modifier.size(48.dp)) {
-                        Icon(Icons.Default.MoreVert, "More preset actions")
-                    }
-                    DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                        DropdownMenuItem(
-                            text = { Text("Edit") },
-                            leadingIcon = { Icon(Icons.Default.Edit, null) },
-                            onClick = { menuOpen = false; onEdit() },
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Move up") },
-                            leadingIcon = { Icon(Icons.Default.KeyboardArrowUp, null) },
-                            enabled = canMoveUp,
-                            onClick = { menuOpen = false; onMove(-1) },
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Move down") },
-                            leadingIcon = { Icon(Icons.Default.KeyboardArrowDown, null) },
-                            enabled = canMoveDown,
-                            onClick = { menuOpen = false; onMove(1) },
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Duplicate") },
-                            leadingIcon = { Icon(Icons.Default.ContentCopy, null) },
-                            onClick = { menuOpen = false; onDuplicate() },
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Delete") },
-                            leadingIcon = { Icon(Icons.Default.Delete, null) },
-                            onClick = { menuOpen = false; onDelete() },
-                        )
-                    }
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowForward, "Open ${preset.name}", Modifier.size(22.dp), tint = MaterialTheme.colorScheme.onPrimary)
                 }
             }
         }
