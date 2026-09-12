@@ -133,14 +133,16 @@ class TimerEngine(
             is TimerMode.Amrap -> TimerSnapshot(
                 config, currentStatus, if (finished) TimerPhase.FINISHED else TimerPhase.RUNNING,
                 clampedElapsed, (mode.durationMillis - clampedElapsed).coerceAtLeast(0L), null, null,
+                finishReason = finishReason,
             )
             is TimerMode.EveryXMinutes -> {
-                val round = if (finished) mode.rounds else (clampedElapsed / mode.intervalMillis).toInt() + 1
+                val round = ((clampedElapsed / mode.intervalMillis).toInt() + 1).coerceAtMost(mode.rounds)
                 val within = if (finished) mode.intervalMillis else clampedElapsed % mode.intervalMillis
                 TimerSnapshot(
                     config, currentStatus, if (finished) TimerPhase.FINISHED else TimerPhase.RUNNING,
                     clampedElapsed, (total!! - clampedElapsed).coerceAtLeast(0L), round, mode.rounds,
                     intervalRemainingMillis = if (finished) 0L else mode.intervalMillis - within,
+                    finishReason = finishReason,
                 )
             }
             is TimerMode.Intervals -> intervalSnapshot(mode, clampedElapsed, currentStatus, finished)
@@ -154,7 +156,7 @@ class TimerEngine(
         finished: Boolean,
     ): TimerSnapshot {
         val cycle = mode.workMillis + mode.restMillis
-        val round = if (finished) mode.rounds else (elapsed / cycle).toInt() + 1
+        val round = ((elapsed / cycle).toInt() + 1).coerceAtMost(mode.rounds)
         val within = elapsed % cycle
         val working = within < mode.workMillis
         val phaseDuration = if (working) mode.workMillis else mode.restMillis
@@ -168,6 +170,7 @@ class TimerEngine(
             currentRound = round,
             totalRounds = mode.rounds,
             intervalRemainingMillis = if (finished) 0L else phaseDuration - phaseElapsed,
+            finishReason = finishReason,
         )
     }
 

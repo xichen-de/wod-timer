@@ -22,7 +22,7 @@ data class Preset(
     val position: Int = 0,
 ) {
     fun normalized() = copy(
-        name = name.trim().ifBlank { mode.name.lowercase().replace('_', ' ').replaceFirstChar(Char::uppercase) },
+        name = name.trim().ifBlank { mode.name.lowercase().replace('_', ' ').replaceFirstChar(Char::uppercase) }.take(200),
         durationMillis = durationMillis.coerceIn(1_000L, 24 * 60 * 60_000L),
         intervalMillis = intervalMillis.coerceIn(1_000L, 60 * 60_000L),
         workMillis = workMillis.coerceIn(1_000L, 60 * 60_000L),

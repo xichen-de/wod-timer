@@ -66,4 +66,27 @@ class TimerEngineTest {
         assertEquals(TimerPhase.WORK, engine.snapshot(30_000).phase)
         assertEquals(TimerStatus.FINISHED, engine.snapshot(50_000).status)
     }
+    @Test fun `early stop preserves the reached round and finish reason`() {
+        listOf(TimerMode.EveryXMinutes(30_000, 8), TimerMode.Intervals(20_000, 10_000, 8)).forEach { mode ->
+            val engine = TimerEngine(TimerConfig(mode, preStartSeconds = 0))
+            engine.start(0)
+            engine.pause(35_000)
+            engine.stop(90_000)
+            val result = engine.snapshot(120_000)
+            assertEquals(2, result.currentRound)
+            assertEquals(35_000L, result.elapsedMillis)
+            assertEquals(FinishReason.COMPLETED, result.finishReason)
+        }
+    }
+
+    @Test fun `all countdown modes expose natural completion reason`() {
+        listOf(TimerMode.Amrap(50_000), TimerMode.EveryXMinutes(25_000, 2),
+            TimerMode.Intervals(20_000, 10_000, 2)).forEach { mode ->
+            val engine = TimerEngine(TimerConfig(mode, preStartSeconds = 0))
+            engine.start(0)
+            val result = engine.snapshot(60_000)
+            assertEquals(FinishReason.DURATION_COMPLETE, result.finishReason)
+            assertEquals(50_000L, result.elapsedMillis)
+        }
+    }
 }

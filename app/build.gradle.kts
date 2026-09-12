@@ -12,10 +12,10 @@ val keystoreProperties = Properties().apply {
 }
 val personalSigningConfigured = listOf("storeFile", "storePassword", "keyAlias", "keyPassword")
     .all { !keystoreProperties.getProperty(it).isNullOrBlank() }
-val releaseVersionName = System.getenv("WOD_TIMER_VERSION_NAME") ?: "1.0.0"
+val releaseVersionName = System.getenv("WOD_TIMER_VERSION_NAME") ?: "1.0.4"
 val releaseVersionCode = System.getenv("WOD_TIMER_VERSION_CODE")?.let { value ->
     requireNotNull(value.toIntOrNull()) { "WOD_TIMER_VERSION_CODE must be an integer" }
-} ?: 1
+} ?: 1000004
 
 android {
     namespace = "dev.xichen.wodtimer"

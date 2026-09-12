@@ -29,7 +29,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     val presets = repository.presets.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val timer: StateFlow<TimerSnapshot?> = controller.state
-    private val _screen = MutableStateFlow(AppScreen.HOME)
+    private val _screen = MutableStateFlow(if (controller.state.value != null) AppScreen.TIMER else AppScreen.HOME)
     val screen = _screen.asStateFlow()
     private val _draft = MutableStateFlow(defaultPreset(PresetMode.AMRAP))
     val draft = _draft.asStateFlow()
@@ -66,16 +66,16 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun move(preset: Preset, delta: Int) = viewModelScope.launch { repository.move(preset.id, delta) }
 
     fun backupPresets(uri: Uri) = viewModelScope.launch {
-        val presetsToBackUp = presets.value
-        val count = presetsToBackUp.size
         runCatching {
+            val presetsToBackUp = repository.findAll()
             withContext(Dispatchers.IO) {
                 val resolver = getApplication<Application>().contentResolver
                 resolver.openOutputStream(uri)?.bufferedWriter()?.let { writer ->
                     PresetBackup.write(presetsToBackUp, writer)
                 } ?: error("The selected file could not be opened.")
             }
-        }.onSuccess {
+            presetsToBackUp.size
+        }.onSuccess { count ->
             _message.value = "Backed up $count preset${if (count == 1) "" else "s"}."
         }.onFailure { error ->
             _message.value = "Backup failed: ${error.message ?: "unknown error"}"

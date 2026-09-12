@@ -35,7 +35,7 @@ class TimerService : Service() {
         observation = scope.launch {
             var lastKey: String? = null
             controller.state.filterNotNull().collect { state ->
-                val key = "${state.status}:${state.phase}:${notificationTime(state)}"
+                val key = notificationText(state)
                 if (key != lastKey) {
                     lastKey = key
                     getSystemService(NotificationManager::class.java)
@@ -61,10 +61,7 @@ class TimerService : Service() {
             this, 0, Intent(this, MainActivity::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
-        val text = state?.let {
-            val millis = notificationTime(it)
-            "${it.phase.name} · ${formatClock(millis)}"
-        } ?: "Timer active"
+        val text = state?.let(::notificationText) ?: "Timer active"
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentTitle(state?.config?.workoutName ?: state?.config?.mode?.title() ?: "WOD Timer")
@@ -79,7 +76,14 @@ class TimerService : Service() {
         private const val CHANNEL_ID = "active_timer"
         private const val NOTIFICATION_ID = 42
     }
+}
 
-    private fun notificationTime(state: TimerSnapshot): Long =
-        state.intervalRemainingMillis ?: state.remainingMillis ?: state.elapsedMillis
+internal fun notificationText(state: TimerSnapshot): String {
+    val label = if (state.status == TimerStatus.PAUSED) "PAUSED" else state.phase.name
+    val clock = when {
+        state.phase == TimerPhase.PREPARING -> formatClock((state.preStartRemainingSeconds ?: 0) * 1_000L)
+        state.config.mode is TimerMode.ForTime -> formatElapsed(state.elapsedMillis)
+        else -> formatClock(state.intervalRemainingMillis ?: state.remainingMillis ?: state.elapsedMillis)
+    }
+    return "$label · $clock"
 }

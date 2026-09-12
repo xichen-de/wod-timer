@@ -16,6 +16,8 @@ class PresetRepository(private val database: AppDatabase) {
         }
     }
 
+    suspend fun findAll(): List<Preset> = dao.findAllOrdered().map(PresetEntity::toDomain)
+
     suspend fun delete(preset: Preset) = dao.delete(preset.toEntity())
 
     suspend fun duplicate(preset: Preset): Long = save(
@@ -36,8 +38,8 @@ class PresetRepository(private val database: AppDatabase) {
         val to = (from + delta).coerceIn(0, entities.lastIndex)
         if (from == to) return@withTransaction
         val reordered = entities.toMutableList().apply { add(to, removeAt(from)) }
-        val range = minOf(from, to)..maxOf(from, to)
-        range.forEach { index -> dao.setPosition(reordered[index].id, index) }
+        // Deletions leave gaps, so normalize every position before the next move.
+        reordered.forEachIndexed { index, entity -> dao.setPosition(entity.id, index) }
     }
 
 }
