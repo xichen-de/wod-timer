@@ -21,6 +21,12 @@ import kotlinx.coroutines.launch
 class TimerService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var observation: Job? = null
+    private val openApp by lazy {
+        // Bring the existing task forward instead of stacking a second MainActivity on top of it.
+        val intent = Intent(this, MainActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -57,16 +63,12 @@ class TimerService : Service() {
     }
 
     private fun notification(state: TimerSnapshot?): Notification {
-        val launch = PendingIntent.getActivity(
-            this, 0, Intent(this, MainActivity::class.java),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
         val text = state?.let(::notificationText) ?: "Timer active"
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentTitle(state?.config?.workoutName ?: state?.config?.mode?.title() ?: "WOD Timer")
             .setContentText(text)
-            .setContentIntent(launch)
+            .setContentIntent(openApp)
             .setOnlyAlertOnce(true)
             .setOngoing(true)
             .build()

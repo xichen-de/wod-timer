@@ -39,7 +39,9 @@ class PresetRepository(private val database: AppDatabase) {
         if (from == to) return@withTransaction
         val reordered = entities.toMutableList().apply { add(to, removeAt(from)) }
         // Deletions leave gaps, so normalize every position before the next move.
-        reordered.forEachIndexed { index, entity -> dao.setPosition(entity.id, index) }
+        reordered.forEachIndexed { index, entity ->
+            if (entity.position != index) dao.setPosition(entity.id, index)
+        }
     }
 
 }

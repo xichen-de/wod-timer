@@ -31,7 +31,7 @@ WOD Timer is a local Android timer for CrossFit and functional-fitness workouts.
 
 - For Time with an optional time cap, AMRAP, Every X Minutes, and work/rest intervals
 - Reusable presets with backup and restore
-- Sound and vibration cues
+- Sound and vibration cues, with an optional final-seconds warning
 - Pause, resume, reset, and background timing
 - Automatic immersive landscape timer with a larger clock
 - Automatic light and dark themes
@@ -39,7 +39,7 @@ WOD Timer is a local Android timer for CrossFit and functional-fitness workouts.
 
 ## Developer setup
 
-Open the project in Android Studio, let Gradle sync, and run the `app` configuration on an Android 8.0/API 26 or newer device or emulator.
+Open the project in Android Studio, let Gradle sync, and run the `app` configuration on an Android 8.0/API 26 or newer device or emulator. The Gradle daemon runs on JDK 25 (see `gradle/gradle-daemon-jvm.properties`); Gradle downloads it automatically if it is not installed.
 
 To verify the project from a terminal:
 
@@ -48,6 +48,12 @@ To verify the project from a terminal:
 ```
 
 Timing logic uses Android's monotonic clock and should be tested with explicit timestamps rather than real-time waits. When changing the Room database, increment its version, add a migration, and commit the updated schema from `app/schemas`.
+
+### Releases
+
+Pushing a tag such as `v1.2.3` (or `v1.2.3-rc.1` for a pre-release) runs the release workflow, which tests, signs, and publishes the APK to GitHub Releases. The version code is derived from the tag as `major * 1000000 + minor * 1000 + patch`. The workflow needs the `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, and `ANDROID_KEY_PASSWORD` repository secrets.
+
+To sign release builds locally, copy `keystore.properties.example` to `keystore.properties` and fill in your keystore details. Without it, `assembleRelease` still builds an unsigned APK.
 
 ## Built with
 

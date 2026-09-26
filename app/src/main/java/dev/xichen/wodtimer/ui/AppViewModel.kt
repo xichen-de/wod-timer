@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -29,7 +30,16 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     val presets = repository.presets.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val timer: StateFlow<TimerSnapshot?> = controller.state
-    private val _screen = MutableStateFlow(if (controller.state.value != null) AppScreen.TIMER else AppScreen.HOME)
+
+    /** Status only changes a few times per workout, unlike [timer] which ticks several times a second. */
+    val timerStatus: StateFlow<TimerStatus?> = controller.state
+        .map { it?.status }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), controller.state.value?.status)
+
+    // Only return to the timer when a workout is still in progress, not after it was finished or abandoned.
+    private val _screen = MutableStateFlow(
+        if (controller.state.value?.status.isInProgress()) AppScreen.TIMER else AppScreen.HOME,
+    )
     val screen = _screen.asStateFlow()
     private val _draft = MutableStateFlow(defaultPreset(PresetMode.AMRAP))
     val draft = _draft.asStateFlow()
@@ -111,9 +121,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             AppScreen.HOME -> Unit
             AppScreen.CONFIGURE -> _screen.value = AppScreen.HOME
             AppScreen.TIMER -> {
-                val status = timer.value?.status
-                if (status == TimerStatus.IDLE || status == TimerStatus.FINISHED) _screen.value = AppScreen.HOME
+                if (!timer.value?.status.isInProgress()) _screen.value = AppScreen.HOME
             }
         }
     }
 }
+
+internal fun TimerStatus?.isInProgress(): Boolean =
+    this == TimerStatus.PREPARING || this == TimerStatus.RUNNING || this == TimerStatus.PAUSED

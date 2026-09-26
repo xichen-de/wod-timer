@@ -2,12 +2,15 @@ package dev.xichen.wodtimer.timer
 
 import android.content.Context
 import android.media.AudioAttributes
+import android.media.AudioFocusRequest
 import android.media.AudioFormat
+import android.media.AudioManager
 import android.media.AudioTrack
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import kotlin.math.PI
 import kotlin.math.sin
@@ -44,22 +47,43 @@ internal fun transitionCue(previous: TimerSnapshot?, current: TimerSnapshot): Cu
 class CuePlayer(context: Context) {
     private val appContext = context.applicationContext
     private val audioExecutor = Executors.newCachedThreadPool()
+    private val vibrator: Vibrator by lazy {
+        if (Build.VERSION.SDK_INT >= 31) {
+            appContext.getSystemService(VibratorManager::class.java).defaultVibrator
+        } else {
+            @Suppress("DEPRECATION") appContext.getSystemService(Vibrator::class.java)
+        }
+    }
+
+    /** Cue waveforms never change, so synthesize each one once instead of on every beep. */
+    private val samplesByCue = ConcurrentHashMap<Cue, ShortArray>()
+
+    private val audioAttributes = AudioAttributes.Builder()
+        .setUsage(AudioAttributes.USAGE_MEDIA)
+        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+        .build()
+    private val audioManager by lazy { appContext.getSystemService(AudioManager::class.java) }
+
+    /** Briefly lowers other apps' music so cues are not buried under a workout playlist. */
+    private val duckRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+        .setAudioAttributes(audioAttributes)
+        .build()
+
+    // Cues may overlap on the executor, so only the last one to finish may restore the music volume.
+    private val focusLock = Any()
+    private var focusHolders = 0
 
     fun play(cue: Cue, config: TimerConfig) {
-        if (config.soundEnabled) audioExecutor.execute { playPattern(cue.pattern()) }
+        if (config.soundEnabled) audioExecutor.execute { playPattern(cue) }
         if (config.vibrationEnabled && cue != Cue.COUNTDOWN) vibrate(cue.vibrationPattern())
     }
 
-    private fun playPattern(pattern: List<Note>) {
-        val samples = pattern.flatMap { note -> synthesize(note).asIterable() }.toShortArray()
+    private fun playPattern(cue: Cue) {
+        val pattern = cue.pattern()
+        val samples = samplesByCue.getOrPut(cue) { synthesize(pattern) }
         if (samples.isEmpty()) return
         val track = AudioTrack.Builder()
-            .setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_MEDIA)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                    .build(),
-            )
+            .setAudioAttributes(audioAttributes)
             .setAudioFormat(
                 AudioFormat.Builder()
                     .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
@@ -70,6 +94,7 @@ class CuePlayer(context: Context) {
             .setTransferMode(AudioTrack.MODE_STATIC)
             .setBufferSizeInBytes(samples.size * Short.SIZE_BYTES)
             .build()
+        acquireFocus()
         try {
             track.write(samples, 0, samples.size)
             track.setVolume(1f)
@@ -78,7 +103,28 @@ class CuePlayer(context: Context) {
         } finally {
             if (track.playState == AudioTrack.PLAYSTATE_PLAYING) track.stop()
             track.release()
+            releaseFocus()
         }
+    }
+
+    // A denied request (e.g. during a phone call) still plays the cue, just without ducking.
+    private fun acquireFocus() = synchronized(focusLock) {
+        if (focusHolders++ == 0) audioManager.requestAudioFocus(duckRequest)
+    }
+
+    private fun releaseFocus() = synchronized(focusLock) {
+        if (--focusHolders == 0) audioManager.abandonAudioFocusRequest(duckRequest)
+    }
+
+    private fun synthesize(pattern: List<Note>): ShortArray {
+        val notes = pattern.map { synthesize(it) }
+        val samples = ShortArray(notes.sumOf { it.size })
+        var offset = 0
+        notes.forEach { note ->
+            note.copyInto(samples, offset)
+            offset += note.size
+        }
+        return samples
     }
 
     private fun synthesize(note: Note): ShortArray {
@@ -98,16 +144,11 @@ class CuePlayer(context: Context) {
     }
 
     private fun vibrate(pattern: LongArray) {
-        val vibrator = if (Build.VERSION.SDK_INT >= 31) {
-            appContext.getSystemService(VibratorManager::class.java).defaultVibrator
-        } else {
-            @Suppress("DEPRECATION") appContext.getSystemService(Vibrator::class.java)
-        }
         vibrator.vibrate(VibrationEffect.createWaveform(pattern, -1))
     }
 
     private fun Cue.pattern(): List<Note> = when (this) {
-        Cue.COUNTDOWN -> listOf(Note(1_050, 150))
+        Cue.COUNTDOWN -> listOf(Note(1_050, 220))
         Cue.WORK -> listOf(Note(650, 100, 35), Note(880, 100, 35), Note(1_220, 300))
         Cue.REST -> listOf(Note(1_050, 150, 45), Note(620, 300))
         Cue.FINISH -> listOf(Note(660, 150, 45), Note(880, 150, 45), Note(1_100, 180, 70), Note(1_320, 520))

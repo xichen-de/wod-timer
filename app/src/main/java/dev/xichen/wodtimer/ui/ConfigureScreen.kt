@@ -28,6 +28,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -153,7 +154,7 @@ private fun IntegerField(label: String, value: Int, onChange: (Int) -> Unit) {
 @Composable
 private fun NumericField(label: String, value: Long, modifier: Modifier, onChange: (Long) -> Unit) {
     var text by remember { mutableStateOf(value.toString()) }
-    var lastPushedValue by remember { mutableStateOf(value) }
+    var lastPushedValue by remember { mutableLongStateOf(value) }
     if (value != lastPushedValue) {
         text = value.toString()
         lastPushedValue = value

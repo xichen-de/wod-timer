@@ -22,6 +22,7 @@ import dev.xichen.wodtimer.timer.TimerStatus
 import dev.xichen.wodtimer.ui.AppScreen
 import dev.xichen.wodtimer.ui.AppViewModel
 import dev.xichen.wodtimer.ui.WodTimerApp
+import dev.xichen.wodtimer.ui.isInProgress
 
 class MainActivity : ComponentActivity() {
     private val viewModel: AppViewModel by viewModels()
@@ -29,10 +30,10 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            val timer by viewModel.timer.collectAsStateWithLifecycle()
+            val timerStatus by viewModel.timerStatus.collectAsStateWithLifecycle()
             val screen by viewModel.screen.collectAsStateWithLifecycle()
             val orientation = LocalConfiguration.current.orientation
-            val keepScreenAwake = shouldKeepScreenAwake(screen, timer?.status)
+            val keepScreenAwake = shouldKeepScreenAwake(screen, timerStatus)
             val immersiveTimer = screen == AppScreen.TIMER && orientation == Configuration.ORIENTATION_LANDSCAPE
             DisposableEffect(keepScreenAwake) {
                 if (keepScreenAwake) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -68,8 +69,4 @@ class MainActivity : ComponentActivity() {
 }
 
 internal fun shouldKeepScreenAwake(screen: AppScreen, status: TimerStatus?): Boolean =
-    screen == AppScreen.TIMER && status in setOf(
-        TimerStatus.PREPARING,
-        TimerStatus.RUNNING,
-        TimerStatus.PAUSED,
-    )
+    screen == AppScreen.TIMER && status.isInProgress()

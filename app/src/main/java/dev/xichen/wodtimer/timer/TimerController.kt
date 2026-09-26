@@ -37,6 +37,9 @@ class TimerController(
 
     fun start() {
         val timer = engine ?: return
+        // A quick double tap (or the permission callback racing a tap) must not replay cues.
+        val startable = _state.value?.status.let { it == null || it == TimerStatus.IDLE || it == TimerStatus.FINISHED }
+        if (!startable) return
         timer.start(now())
         publish()
         _state.value?.let { state ->
@@ -66,7 +69,8 @@ class TimerController(
             while (isActive) {
                 publish()
                 val status = _state.value?.status
-                if (status == TimerStatus.FINISHED || status == TimerStatus.IDLE) break
+                // Paused snapshots are frozen, so stop waking up until resume() restarts the ticker.
+                if (status == TimerStatus.FINISHED || status == TimerStatus.IDLE || status == TimerStatus.PAUSED) break
                 delay(TICK_INTERVAL_MILLIS)
             }
         }

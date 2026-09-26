@@ -158,8 +158,8 @@ fun HomeScreen(viewModel: AppViewModel) {
         }
         if (presets.isNotEmpty()) {
             item {
-                Spacer(Modifier.height(12.dp))
-                SectionTitle("My presets", presets.size.toString())
+                // Multiple children of a lazy item overlap, so space the title with padding instead of a Spacer.
+                SectionTitle("My presets", Modifier.padding(top = 12.dp), count = presets.size.toString())
             }
         }
         itemsIndexed(presets, key = { _, preset -> preset.id }) { index, preset ->
@@ -200,16 +200,14 @@ fun HomeScreen(viewModel: AppViewModel) {
 }
 
 @Composable
-private fun SectionTitle(title: String, count: String? = null, action: @Composable () -> Unit = {}) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+private fun SectionTitle(title: String, modifier: Modifier = Modifier, count: String? = null) {
+    Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         if (count != null) {
             Surface(modifier = Modifier.padding(start = 9.dp), color = MaterialTheme.colorScheme.surfaceVariant, shape = CircleShape) {
                 Text(count, Modifier.padding(horizontal = 9.dp, vertical = 3.dp), style = MaterialTheme.typography.labelMedium)
             }
         }
-        Spacer(Modifier.weight(1f))
-        action()
     }
 }
 
